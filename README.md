@@ -5,11 +5,20 @@ real cursor and keyboard to do it.
 
 ## 1. What is this?
 
-I was tired of constantly moving back and forth between a chatbot window and the docs I was
-actually looking at — so I built **Zolo, a voice-controlled personal assistant that lives on your
-OS.**
+We switch apps **~1,200 times a day**, and every real interruption costs **~23 minutes** to refocus
+— about **4 hours a week** (≈9% of your work time) just reorienting. In all that toggling, things
+slip through the cracks: the email you meant to answer, the reply you forgot. Context switching is
+estimated to drain **~$450B a year** from the US economy — and on a $50/hr knowledge worker, that
+lost ~4 hrs/week is roughly **$10K per person, per year.**
 
-You say *"search for sushi and open the first result"* and Zolo does it. Instead of guessing pixels
+I was tired of constantly moving back and forth between a chatbot window and the docs I was
+actually reading — so I built **Zolo, a voice-controlled assistant that lives on your OS.** You stay
+right where you are and just talk; Zolo reads your screen and does it. No tab-switch, no copy-paste,
+no losing your place.
+
+You say *"search for sushi and open the first result"* and Zolo does it.
+
+<sub>Sources: [Gloria Mark, UC Irvine — *The Cost of Interrupted Work*](https://www.ics.uci.edu/~gmark/chi08-mark.pdf) · [Harvard Business Review — app toggling (~1,200/day)](https://hbr.org/2022/08/how-much-time-and-energy-do-we-waste-toggling-between-applications) · [$450B/year estimate](https://www.waymakeros.com/learn/context-switching-costs-450b)</sub> Instead of guessing pixels
 from a screenshot, it reads the **macOS Accessibility tree** of whatever app is in front and drives
 the **real cursor + keyboard**. It narrates each step, asks before anything irreversible (Book / Pay /
 Send), and shows a **custom cursor sprite** so you can watch it work. No vision model — just the
