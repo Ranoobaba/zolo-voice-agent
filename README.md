@@ -15,6 +15,44 @@ the **real cursor + keyboard**. It narrates each step, asks before anything irre
 Send), and shows a **custom cursor sprite** so you can watch it work. No vision model — just the
 accessibility tree + `pyautogui`.
 
+## Architecture
+
+```mermaid
+flowchart TD
+    U["🗣️ You speak  /  🔊 you hear Zolo"]
+
+    subgraph PIPE["Pipecat voice loop (WebRTC)"]
+        STT["Nemotron Speech<br/>Streaming STT"]
+        LLM["Nemotron-3-Super-120B<br/>reasoning + tool calls"]
+        TTS["TTS<br/>Gradium / ElevenLabs"]
+        STT --> LLM --> TTS
+    end
+
+    U -->|mic audio| STT
+    TTS -->|spoken reply| U
+
+    subgraph DC["DesktopController · desktop_control.py"]
+        READ["read_screen()"]
+        ACT["click · type · scroll · do_actions"]
+    end
+
+    LLM -->|tool call| READ
+    LLM -->|tool call| ACT
+    READ --> AX["macOS Accessibility tree<br/>(frontmost app)"]
+    AX -->|elements + labels| LLM
+    ACT --> PG["pyautogui<br/>real cursor + keyboard"]
+    PG --> MAC["🖥️ Your Mac — any app"]
+    SPR["cursor_sprite.py<br/>custom cursor overlay"] -. rides the cursor .-> MAC
+
+    PIPE -. deployed on .-> PCC["Pipecat Cloud"]
+    CEK["Cekura<br/>metrics + scenario evals"] -. voice tests .-> PCC
+```
+
+**The loop:** you talk → **Nemotron STT** transcribes → **Nemotron LLM** decides and calls a tool →
+`read_screen` pulls real elements from the **macOS Accessibility tree** (or an action drives the
+**real cursor** via `pyautogui`) → the LLM narrates the result → **TTS** speaks it back. Cekura runs
+automated **voice tests** against the Pipecat Cloud deployment to catch and fix failures.
+
 ## 2. Demo (< 60s)
 
 📹 **[Watch the demo](https://screen.studio/share/wv6eDhVG)**
