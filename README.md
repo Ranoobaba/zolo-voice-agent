@@ -5,6 +5,10 @@ real cursor and keyboard to do it.
 
 ## 1. What is this?
 
+I was tired of constantly moving back and forth between a chatbot window and the docs I was
+actually looking at — so I built **Zolo, a voice-controlled personal assistant that lives on your
+OS.**
+
 You say *"search for sushi and open the first result"* and Zolo does it. Instead of guessing pixels
 from a screenshot, it reads the **macOS Accessibility tree** of whatever app is in front and drives
 the **real cursor + keyboard**. It narrates each step, asks before anything irreversible (Book / Pay /
@@ -13,7 +17,7 @@ accessibility tree + `pyautogui`.
 
 ## 2. Demo (< 60s)
 
-📹 **[Watch the demo](ADD_VIDEO_LINK)** — *TODO: paste your < 60s screen recording link here.*
+📹 **[Watch the demo](https://screen.studio/share/wv6eDhVG)**
 
 ## 3. Cekura + Nemotron + Pipecat
 
