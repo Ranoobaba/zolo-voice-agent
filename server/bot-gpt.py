@@ -49,11 +49,13 @@ from pipecat.services.llm_service import FunctionCallParams
 from pipecat.services.openai.responses.llm import OpenAIResponsesLLMService
 from pipecat.transcriptions.language import Language
 from pipecat.transports.base_transport import BaseTransport, TransportParams
+from pipecat.transports.daily.transport import DailyParams, DailyTransport
 from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams, FastAPIWebsocketTransport
 from pipecat.turns.user_turn_strategies import FilterIncompleteUserTurnStrategies
 from pipecat.workers.runner import WorkerRunner
+from pipecatcloud.agent import DailySessionArguments
 
 from mock_backend import BOUQUETS, KNOWN_CUSTOMERS
 
@@ -453,6 +455,22 @@ async def bot(runner_args: RunnerArguments):
             transport = SmallWebRTCTransport(
                 webrtc_connection=webrtc_connection,
                 params=TransportParams(
+                    audio_in_enabled=True,
+                    audio_in_filter=krisp_filter,
+                    audio_out_enabled=True,
+                ),
+            )
+        case DailySessionArguments():
+            # Pipecat Cloud — including Cekura's WebRTC test runs — starts each
+            # session backed by a Daily room. Build a DailyTransport from the
+            # room URL + token in the session args. Without this branch the bot
+            # falls through to `case _` and returns before the pipeline starts,
+            # so it produces no audio at all (silent agent).
+            transport = DailyTransport(
+                runner_args.room_url,
+                runner_args.token,
+                "Field & Flower",
+                params=DailyParams(
                     audio_in_enabled=True,
                     audio_in_filter=krisp_filter,
                     audio_out_enabled=True,
