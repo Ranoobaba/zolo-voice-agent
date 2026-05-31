@@ -56,8 +56,9 @@ load_dotenv(override=True)
 # --- robustness wrappers (from plan-eng-review findings) ---------------------
 # read_offloop: AX tree reads are blocking and can raise mid-walk if an element
 # disappears. Run them off the event loop so audio never stalls, and never throw.
-# act_safely: actuation touches AppKit activate (main-thread preferred), so keep
-# it on the loop, but never let an exception leave the LLM hanging without a result.
+# act_safely: actuation (cursor moves, typing, scrolling) is blocking, so run it
+# OFF the event loop too — a slow moveTo/type otherwise stalls STT/TTS and the
+# voice session degrades (Codex #6). Never let an exception leave the LLM hanging.
 
 
 async def read_offloop(read_callable):
@@ -72,10 +73,10 @@ async def read_offloop(read_callable):
         }
 
 
-def act_safely(action_callable, *args):
-    """Run an actuation call on the loop; return an error dict instead of raising."""
+async def act_safely(action_callable, *args):
+    """Run a blocking actuation call off the event loop; return an error dict, never raise."""
     try:
-        return action_callable(*args)
+        return await asyncio.to_thread(action_callable, *args)
     except Exception as exc:
         logger.exception("[zolo] desktop action failed")
         return {
@@ -117,14 +118,24 @@ async def run_bot(
         """Click an element by its id (e.g. "e3") or its exact label (e.g.
         "Find a table"). The target must come from the most recent read_screen.
 
-        IMPORTANT: before clicking anything that submits, sends, books, pays, or
-        deletes, first tell the user what you're about to do and wait for them to
-        say yes. Only then click it.
+        This tool REFUSES committing controls (Book, Pay, Submit, Send, Delete,
+        Place order) and tells you it needs confirmation. For those: tell the user
+        what you're about to do, get a clear yes, then call confirm_and_click.
 
         Args:
             target: The id or label of the element to click.
         """
-        await params.result_callback(act_safely(controller.click, target))
+        await params.result_callback(await act_safely(controller.click, target))
+
+    async def confirm_and_click(params: FunctionCallParams, target: str) -> None:
+        """Click a COMMITTING control (Book / Pay / Submit / Send / Delete / Place order).
+        Only call this AFTER you have told the user exactly what you're about to do AND they
+        said yes in this conversation. Never call it on your own initiative.
+
+        Args:
+            target: The id or label of the committing element to click.
+        """
+        await params.result_callback(await act_safely(controller.confirm_click, target))
 
     async def type_text(params: FunctionCallParams, text: str) -> None:
         """Type text into the currently focused field. Click the field first so
@@ -133,7 +144,7 @@ async def run_bot(
         Args:
             text: The literal text to type.
         """
-        await params.result_callback(act_safely(controller.type_text, text))
+        await params.result_callback(await act_safely(controller.type_text, text))
 
     async def press_key(params: FunctionCallParams, key: str) -> None:
         """Press a single special key, e.g. "return", "tab", "escape", "space".
@@ -141,7 +152,7 @@ async def run_bot(
         Args:
             key: The name of the key to press.
         """
-        await params.result_callback(act_safely(controller.press_key, key))
+        await params.result_callback(await act_safely(controller.press_key, key))
 
     async def scroll(params: FunctionCallParams, direction: str = "down", amount: int = 5) -> None:
         """Scroll the screen up or down to reveal more elements, then read_screen again.
@@ -150,7 +161,7 @@ async def run_bot(
             direction: "up" or "down".
             amount: How far to scroll. Defaults to 5.
         """
-        await params.result_callback(act_safely(controller.scroll, direction, amount))
+        await params.result_callback(await act_safely(controller.scroll, direction, amount))
 
     async def do_actions(params: FunctionCallParams, steps: list) -> None:
         """Run several on-screen actions in ONE call, in order, for a multi-step task
@@ -170,7 +181,7 @@ async def run_bot(
         Args:
             steps: Ordered list of action objects to perform on the current screen.
         """
-        await params.result_callback(act_safely(controller.do_actions, steps))
+        await params.result_callback(await act_safely(controller.do_actions, steps))
 
     async def end_session(params: FunctionCallParams) -> None:
         """End the session. Only call this AFTER you have said goodbye in the same
@@ -181,7 +192,16 @@ async def run_bot(
             {"ok": True}, properties=FunctionCallResultProperties(run_llm=False)
         )
 
-    tool_functions = [read_screen, do_actions, click, type_text, press_key, scroll, end_session]
+    tool_functions = [
+        read_screen,
+        do_actions,
+        click,
+        confirm_and_click,
+        type_text,
+        press_key,
+        scroll,
+        end_session,
+    ]
     tools = ToolsSchema(standard_tools=tool_functions)
 
     # --- System instruction --------------------------------------------------
@@ -219,11 +239,12 @@ async def run_bot(
         "- Finish the job out loud. When a multi-step task completes, say so in one short "
         "sentence that names the outcome (\"Sent.\" / \"Booked — you're all set.\"), then stop.\n\n"
         "Safety — this matters:\n"
-        "- Before clicking anything that SUBMITS, SENDS, BOOKS, PAYS, or DELETES, stop. "
-        "Say in one sentence what you're about to do and ask the user to confirm. Only "
-        "click it after they say yes.\n"
-        "- If no element matches, call read_screen again and tell the user what you see "
-        "instead of guessing.\n\n"
+        "- Committing actions (BOOK, PAY, SUBMIT, SEND, DELETE, PLACE ORDER) are gated in code: "
+        "the click tool will REFUSE them and say it needs confirmation. When that happens, say in "
+        "one sentence what you're about to do, wait for the user to say yes, THEN call "
+        "confirm_and_click on the same target. Never call confirm_and_click without a clear yes.\n"
+        "- If no element matches, or a tool says the screen changed / nothing is focused, call "
+        "read_screen again and tell the user what you actually see instead of guessing.\n\n"
         "Talking — your words are spoken aloud:\n"
         "- One short sentence per turn. Narrate as you act: \"Okay, clicking the search box.\"\n"
         "- Refer to things ONLY by their human label or what they do — \"the search box\", "
