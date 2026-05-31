@@ -68,6 +68,19 @@ automated **voice tests** against the Pipecat Cloud deployment to catch and fix 
   at the screen" loop where the LLM never actually called its tool, and a booking made without
   confirmation. We then fixed each in the prompt.
 
+**Specific tools we used, by company:**
+
+- **NVIDIA Nemotron** — **Nemotron Speech Streaming STT** (WebSocket ASR) for the ears, and the
+  **Nemotron-3-Super-120B** open-weights LLM (served via vLLM, OpenAI-compatible) for all reasoning
+  and tool calls.
+- **Pipecat** — the **Pipecat framework** (the STT → LLM → TTS pipeline + function-tool calling),
+  **SmallWebRTC** transport for local dev and **Daily** transport for the cloud, **Silero VAD** +
+  smart-turn detection, the **Krisp** noise filter, and **Pipecat Cloud** for deployment
+  (`pipecat cloud deploy`).
+- **Cekura** — the **Cekura MCP + skills** (in Claude Code) to create the agent, author **3 custom
+  LLM-judge metrics** plus a **predefined metric suite**, **auto-generate a 10-scenario test set**,
+  run **voice simulations**, and read per-scenario **results + failure analysis**.
+
 ## 4. What's new this hackathon
 
 Started from the Pipecat flower-shop starter. **New this weekend:** the whole desktop-control agent —
